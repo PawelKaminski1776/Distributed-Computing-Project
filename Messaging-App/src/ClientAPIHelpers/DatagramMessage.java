@@ -1,7 +1,9 @@
+package ClientAPIHelpers;
+
 import java.net.InetAddress;
 
 /**
- * A class to use with MyServerDatagramSocket for
+ * A class to use with ServerAPIHelpers.MyServerDatagramSocket for
  * returning a message and the sender's address
  * @author M. L. Liu
  */

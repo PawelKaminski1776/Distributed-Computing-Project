@@ -1,3 +1,7 @@
+package ServerAPIHelpers;
+
+import ClientAPIHelpers.DatagramMessage;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -42,7 +46,7 @@ static final int MAX_LEN = 100;
          DatagramPacket datagram =
             new DatagramPacket(receiveBuffer, MAX_LEN);
          this.receive(datagram);
-         // create a DatagramMessage object, to contain message
+         // create a ClientAPIHelpers.DatagramMessage object, to contain message
          //   received and sender's address
          DatagramMessage returnVal = new DatagramMessage( );
          returnVal.putVal(new String(receiveBuffer),
