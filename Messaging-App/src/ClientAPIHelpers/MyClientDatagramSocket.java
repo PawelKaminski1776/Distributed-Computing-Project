@@ -28,7 +28,7 @@ static final int MAX_LEN = 1000;
             new DatagramPacket(sendBuffer, sendBuffer.length, 
                                   receiverHost, receiverPort);
          this.send(datagram);
-   } // end sendMessage
+   }
 
    public String receiveMessage()
 		throws IOException {		
@@ -38,5 +38,5 @@ static final int MAX_LEN = 1000;
          this.receive(datagram);
          String message = new String(receiveBuffer);
          return message;
-   } //end receiveMessage
-} //end class
+   }
+}
