@@ -13,8 +13,12 @@ import java.util.List;
 
 public class EchoServerGui extends JFrame {
    private static final int SERVER_PORT = 7;
-   private static final Map<String, String> userDatabase = new HashMap<>(); // Stores usernames and passwords
-   private static final List<String> messageHistory = new ArrayList<>(); // Stores messages from clients
+   private static Map<String, String> userDatabase = new HashMap<>(); // Stores usernames and passwords
+   private static List<MessageRequest> messageHistory = new ArrayList<>(); // Stores messages from clients
+   private static List<PrintWriter> clientOutputs = new ArrayList<>(); // List of PrintWriters to send messages to clients
+
+   private static final String userDatabaseFilePath = "userDatabase.json";
+   private static final String userMessagesFilePath = "Messages.json";
 
    private JTextArea logArea;
    private JButton startButton;
@@ -122,10 +126,19 @@ public class EchoServerGui extends JFrame {
          try (ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
               PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
+            // Add this client to the list of clients
+            synchronized (clientOutputs) {
+               clientOutputs.add(writer);
+            }
+
             // Read the serialized UserRequest object
             Object request = in.readObject();
 
             if (request instanceof UserRequest) {
+
+               DatabaseSerializer databaseSerializer = new DatabaseSerializer(userDatabaseFilePath, userDatabase);
+               userDatabase = databaseSerializer.getUserDatabase();
+
                UserRequest userRequest = (UserRequest) request;
 
                String username = userRequest.getUsername();
@@ -149,21 +162,37 @@ public class EchoServerGui extends JFrame {
                }
 
             } else if (request instanceof MessageRequest) {
+
                // Handle MessageRequest
                MessageRequest messageRequest = (MessageRequest) request;
-               String username = messageRequest.getUsername();
-               String message = messageRequest.getMessage();
-               Date timestamp = messageRequest.getTimestamp();
+
+               messageHistory.add(messageRequest);
 
                // Add the message to the message history
-               messageHistory.add("[" + timestamp + "] " + username + ": " + message);
-               logArea.append("Received message: " + message + "\n");
+               logArea.append("Received message: " + messageRequest.getMessage() + "\n");
 
-               writer.println("Message received at " + timestamp + ": " + message);
+               // Broadcast the message to all clients
+               broadcastMessage(messageRequest);
+
+               writer.println("Message received at " + messageRequest.getTimestamp() + ": " + messageRequest.getMessage() + "\n");
             }
 
          } catch (IOException | ClassNotFoundException ex) {
             logArea.append("Error handling client: " + ex.getMessage() + "\n");
+         } finally {
+            // Remove the client from the list of outputs when they disconnect
+            synchronized (clientOutputs) {
+               clientOutputs.remove(clientSocket);
+            }
+         }
+      }
+   }
+
+   private void broadcastMessage(MessageRequest messageRequest) {
+      synchronized (clientOutputs) {
+         // Send the new message to all connected clients
+         for (PrintWriter clientOutput : clientOutputs) {
+            clientOutput.println(messageRequest.getUsername() + " : " + messageRequest.getMessage() + " Time: " + messageRequest.getTimestamp());
          }
       }
    }

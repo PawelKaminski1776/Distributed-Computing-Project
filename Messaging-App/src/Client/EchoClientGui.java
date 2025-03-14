@@ -30,7 +30,7 @@ public class EchoClientGui extends JFrame {
 
    public EchoClientGui() {
       setTitle("Echo Client");
-      setSize(400, 400);
+      setSize(400, 600);
       setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
       setLocationRelativeTo(null);
 
@@ -149,7 +149,7 @@ public class EchoClientGui extends JFrame {
 
       // Create message panel components
       echoArea = new JTextArea();
-      echoArea.setPreferredSize(new Dimension(300, 100));
+      echoArea.setPreferredSize(new Dimension(340, 450));
       echoArea.setEditable(false);
       JScrollPane scrollPane = new JScrollPane(echoArea);
       messagePanel.add(scrollPane, BorderLayout.CENTER);
@@ -260,7 +260,7 @@ public class EchoClientGui extends JFrame {
           ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
           BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-         MessageRequest messageRequest = new MessageRequest(message, this.Username);
+         MessageRequest messageRequest = new MessageRequest(this.Username, message);
 
          // Sending Json Over to Server
          out.writeObject(messageRequest);
