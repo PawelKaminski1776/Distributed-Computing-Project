@@ -1,5 +1,8 @@
 package Server;
 
+import Messages.UserRequest;
+import Messages.MessageRequest;
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -116,44 +119,50 @@ public class EchoServerGui extends JFrame {
 
       @Override
       public void run() {
-         try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+         try (ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
               PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
-            String clientMessage;
-            while ((clientMessage = reader.readLine()) != null) {
-               logArea.append("Received: " + clientMessage + "\n");
+            // Read the serialized UserRequest object
+            Object request = in.readObject();
 
-               if (clientMessage.startsWith("LOGIN:")) {
+            if (request instanceof UserRequest) {
+               UserRequest userRequest = (UserRequest) request;
+
+               String username = userRequest.getUsername();
+               String password = userRequest.getPassword();
+
+               if (userRequest.getAction().equals("LOGIN")) {
                   // Handle login
-                  String[] credentials = clientMessage.split(":")[1].split(",");
-                  String username = credentials[0];
-                  String password = credentials[1];
-
                   if (userDatabase.containsKey(username) && userDatabase.get(username).equals(password)) {
                      writer.println("Login successful.");
                   } else {
                      writer.println("Invalid username or password.");
                   }
-               } else if (clientMessage.startsWith("CREATE_ACCOUNT:")) {
+               } else if (userRequest.getAction().equals("CREATE_ACCOUNT")) {
                   // Handle account creation
-                  String[] credentials = clientMessage.split(":")[1].split(",");
-                  String username = credentials[0];
-                  String password = credentials[1];
-
                   if (!userDatabase.containsKey(username)) {
                      userDatabase.put(username, password);
                      writer.println("Account created successfully.");
                   } else {
                      writer.println("Username already exists.");
                   }
-               } else if (clientMessage.startsWith("MESSAGE:")) {
-                  // Store the message
-                  String message = clientMessage.split(":")[1];
-                  messageHistory.add(message);
-                  writer.println("Message received: " + message);
                }
+
+            } else if (request instanceof MessageRequest) {
+               // Handle MessageRequest
+               MessageRequest messageRequest = (MessageRequest) request;
+               String username = messageRequest.getUsername();
+               String message = messageRequest.getMessage();
+               Date timestamp = messageRequest.getTimestamp();
+
+               // Add the message to the message history
+               messageHistory.add("[" + timestamp + "] " + username + ": " + message);
+               logArea.append("Received message: " + message + "\n");
+
+               writer.println("Message received at " + timestamp + ": " + message);
             }
-         } catch (IOException ex) {
+
+         } catch (IOException | ClassNotFoundException ex) {
             logArea.append("Error handling client: " + ex.getMessage() + "\n");
          }
       }

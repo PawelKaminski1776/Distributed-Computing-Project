@@ -1,5 +1,8 @@
 package Client;
 
+import Messages.MessageRequest;
+import Messages.UserRequest;
+
 import java.io.*;
 import java.net.*;
 import javax.swing.*;
@@ -14,6 +17,7 @@ public class EchoClientGui extends JFrame {
    private JButton createAccountButton;
    private JButton sendButton;
    private JTextArea echoArea;
+   private String Username;
    private Socket clientSocket;
    private PrintWriter writer;
    private BufferedReader reader;
@@ -131,15 +135,10 @@ public class EchoClientGui extends JFrame {
    private void showMessagePanel() {
       clearFrame();
       clearPanel(messagePanel);
-      messagePanel.setLayout(new BorderLayout());
+      messagePanel.setLayout(new FlowLayout(FlowLayout.LEFT, 50, 30));
 
-      // Create message panel components
-      echoArea = new JTextArea(10, 30);
-      echoArea.setEditable(false);
-      JScrollPane scrollPane = new JScrollPane(echoArea);
-      messagePanel.add(scrollPane, BorderLayout.CENTER);
-
-      messageArea = new JTextArea(5, 20);
+      messageArea = new JTextArea();
+      messageArea.setPreferredSize(new Dimension(300, 100));
       messageArea.setLineWrap(true);
       messagePanel.add(new JScrollPane(messageArea), BorderLayout.SOUTH);
 
@@ -147,6 +146,13 @@ public class EchoClientGui extends JFrame {
       sendButton.setPreferredSize(new Dimension(120, 30));  // Set preferred button size
       sendButton.addActionListener(e -> sendMessage());
       messagePanel.add(sendButton, BorderLayout.SOUTH);
+
+      // Create message panel components
+      echoArea = new JTextArea();
+      echoArea.setPreferredSize(new Dimension(300, 100));
+      echoArea.setEditable(false);
+      JScrollPane scrollPane = new JScrollPane(echoArea);
+      messagePanel.add(scrollPane, BorderLayout.CENTER);
 
       add(messagePanel, BorderLayout.CENTER);
       revalidate();
@@ -183,19 +189,28 @@ public class EchoClientGui extends JFrame {
          return;
       }
 
-      try {
-         clientSocket = new Socket("localhost", 7);
-         writer = new PrintWriter(clientSocket.getOutputStream(), true);
-         reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+      try(Socket clientSocket = new Socket("localhost", 7);
+         ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+         BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-         writer.println("LOGIN:" + username + "," + password);
+         // Creating a Login Request Object that implements serialization
+         UserRequest loginRequest = new UserRequest(username, password, "LOGIN");
+
+         // Sending Json Over to Server
+         out.writeObject(loginRequest);
+         // Read the server's response
          String serverResponse = reader.readLine();
+         System.out.println("Server Response: " + serverResponse);
 
-         System.out.println(serverResponse);
-         echoArea.append(serverResponse + "\n");
 
-         // Show message panel after successful login
-         showMessagePanel();
+         if(serverResponse.equals("Login successful.")) {
+            // Show message panel after successful login
+            this.Username = username;
+            showMessagePanel();
+         }
+         else {
+            echoArea.append(serverResponse + "\n");
+         }
 
       } catch (IOException ex) {
          echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
@@ -211,17 +226,22 @@ public class EchoClientGui extends JFrame {
          return;
       }
 
-      try {
-         clientSocket = new Socket("localhost", 7);
-         writer = new PrintWriter(clientSocket.getOutputStream(), true);
-         reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+      try(Socket clientSocket = new Socket("localhost", 7);
+          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-         writer.println("CREATE_ACCOUNT:" + username + "," + password);
+         // Creating a create Account Request Object that implements serialization
+         UserRequest createAccountRequest = new UserRequest(username, password, "CREATE_ACCOUNT");
+
+         // Sending Json Over to Server
+         out.writeObject(createAccountRequest);
+
+         // Read the server's response
          String serverResponse = reader.readLine();
+         System.out.println("Server Response: " + serverResponse);
+
          echoArea.append(serverResponse + "\n");
 
-         // Show message panel after account creation
-         showMessagePanel();
 
       } catch (IOException ex) {
          echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
@@ -236,12 +256,24 @@ public class EchoClientGui extends JFrame {
          return;
       }
 
-      try {
-         writer.println("MESSAGE:" + message);
+      try(Socket clientSocket = new Socket("localhost", 7);
+          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+
+         MessageRequest messageRequest = new MessageRequest(message, this.Username);
+
+         // Sending Json Over to Server
+         out.writeObject(messageRequest);
+
+         // Read the server's response
          String serverResponse = reader.readLine();
+         System.out.println("Server Response: " + serverResponse);
+
          echoArea.append(serverResponse + "\n");
+
+
       } catch (IOException ex) {
-         echoArea.append("Error sending message: " + ex.getMessage() + "\n");
+         echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
       }
    }
 
