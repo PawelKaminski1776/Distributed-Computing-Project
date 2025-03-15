@@ -28,6 +28,7 @@ public class EchoClientGui extends JFrame {
    private JPanel createAccountPanel;
    private JPanel messagePanel;
 
+
    public EchoClientGui() {
       setTitle("Echo Client");
       setSize(400, 600);
@@ -132,7 +133,7 @@ public class EchoClientGui extends JFrame {
    }
 
    // Show message panel after successful login
-   private void showMessagePanel() {
+   private void showMessagePanel(String message) {
       clearFrame();
       clearPanel(messagePanel);
       messagePanel.setLayout(new FlowLayout(FlowLayout.LEFT, 50, 30));
@@ -147,21 +148,84 @@ public class EchoClientGui extends JFrame {
       sendButton.addActionListener(e -> sendMessage());
       messagePanel.add(sendButton, BorderLayout.SOUTH);
 
-      JButton backButton = new JButton("Back");
+      JButton backButton = new JButton("Log Out");
       backButton.setPreferredSize(new Dimension(120, 30));  // Set preferred button size
       backButton.addActionListener(e -> showMainPanel());
       messagePanel.add(backButton);
 
       // Create message panel components
-      echoArea = new JTextArea();
+      echoArea = new JTextArea(message);
       echoArea.setPreferredSize(new Dimension(300, 300));
       echoArea.setEditable(false);
       JScrollPane scrollPane = new JScrollPane(echoArea);
       messagePanel.add(scrollPane, BorderLayout.CENTER);
 
+
       add(messagePanel, BorderLayout.CENTER);
       revalidate();
       repaint();
+
+      new Thread(this::ListenToServer).start();
+   }
+
+   private void ListenToServer()
+   {
+      while(this.Username != null)
+      {
+         try(Socket clientSocket = new Socket("localhost", 7);
+             ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+            // Read the server's response
+            String serverResponse = reader.readLine();
+            System.out.println("Server Response: " + serverResponse);
+
+            echoArea.append("\n" + serverResponse);
+
+
+         } catch (IOException ex) {
+            echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
+         }
+      }
+   }
+
+   // Send message to server
+   private void sendMessage() {
+      String message = messageArea.getText().trim();
+      if (message.isEmpty()) {
+         echoArea.append("\nPlease enter a message.");
+         return;
+      }
+
+      try(Socket clientSocket = new Socket("localhost", 7);
+          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+
+         MessageRequest messageRequest = new MessageRequest(this.Username, message);
+
+         out.writeObject(messageRequest);
+
+         messageArea.setText("");
+
+
+      } catch (IOException ex) {
+         echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
+      }
+   }
+
+
+   private void LogOut()
+   {
+      this.Username = null;
+      try(Socket clientSocket = new Socket("localhost", 7);
+          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+         UserRequest loginRequest = new UserRequest(Username, "", "LOGOUT");
+
+         out.writeObject(loginRequest);
+
+      } catch (IOException ex) {
+         echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
+      }
    }
 
    // Clear current content of the frame
@@ -180,6 +244,7 @@ public class EchoClientGui extends JFrame {
    // Show the initial screen with buttons
    private void showMainPanel() {
       clearFrame();
+      LogOut();
       add(mainPanel, BorderLayout.CENTER);
       revalidate();
       repaint();
@@ -209,9 +274,9 @@ public class EchoClientGui extends JFrame {
 
 
          if(serverResponse.equals("Login successful.")) {
-            // Show message panel after successful login
+            // Show message panel after successful
             this.Username = username;
-            showMessagePanel();
+            showMessagePanel(reader.readLine());
          }
          else {
             echoArea.append(serverResponse + "\n");
@@ -246,37 +311,6 @@ public class EchoClientGui extends JFrame {
          System.out.println("Server Response: " + serverResponse);
 
          echoArea.append(serverResponse + "\n");
-
-
-      } catch (IOException ex) {
-         echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
-      }
-   }
-
-   // Send message to server
-   private void sendMessage() {
-      String message = messageArea.getText().trim();
-      if (message.isEmpty()) {
-         echoArea.append("Please enter a message.\n");
-         return;
-      }
-
-      try(Socket clientSocket = new Socket("localhost", 7);
-          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-
-         MessageRequest messageRequest = new MessageRequest(this.Username, message);
-
-         // Sending Json Over to Server
-         out.writeObject(messageRequest);
-
-         // Read the server's response
-         String serverResponse = reader.readLine();
-         System.out.println("Server Response: " + serverResponse);
-
-         echoArea.append(serverResponse + "\n");
-
-         messageArea.setText("");
 
 
       } catch (IOException ex) {

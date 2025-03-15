@@ -128,6 +128,10 @@ public class EchoServerGui extends JFrame {
 
             // Add this client to the list of clients
             synchronized (clientOutputs) {
+               if(clientOutputs.contains(writer))
+               {
+                  clientOutputs.remove(writer);
+               }
                clientOutputs.add(writer);
             }
 
@@ -148,6 +152,7 @@ public class EchoServerGui extends JFrame {
                   // Handle login
                   if (userDatabase.containsKey(username) && userDatabase.get(username).equals(password)) {
                      writer.println("Login successful.");
+                     broatcastLogOnorLogOff(username, "LOGIN");
                   } else {
                      writer.println("Invalid username or password.");
                   }
@@ -159,6 +164,11 @@ public class EchoServerGui extends JFrame {
                   } else {
                      writer.println("Username already exists.");
                   }
+               }
+               else if (userRequest.getAction().equals("LOGOUT")) {
+                  // Handle account creation
+                  clientOutputs.remove(writer);
+                  broatcastLogOnorLogOff(username, "LOGOUT");
                }
 
             } else if (request instanceof MessageRequest) {
@@ -173,8 +183,6 @@ public class EchoServerGui extends JFrame {
 
                // Broadcast the message to all clients
                broadcastMessage(messageRequest);
-
-               writer.println("Message received at " + messageRequest.getTimestamp() + ": " + messageRequest.getMessage() + "\n");
             }
 
          } catch (IOException | ClassNotFoundException ex) {
@@ -188,11 +196,32 @@ public class EchoServerGui extends JFrame {
       }
    }
 
+   private void broatcastLogOnorLogOff(String username, String method)
+   {
+      if(method.equals("LOGIN")) {
+         synchronized (clientOutputs) {
+            // Send the new message to all connected clients
+            for (PrintWriter clientOutput : clientOutputs) {
+               clientOutput.println(username + " has joined the chat.");
+            }
+         }
+      }
+      else if(method.equals("LOGOUT"))
+      {
+         synchronized (clientOutputs) {
+            // Send the new message to all connected clients
+            for (PrintWriter clientOutput : clientOutputs) {
+               clientOutput.println(username + " has left the chat.");
+            }
+         }
+      }
+   }
+
    private void broadcastMessage(MessageRequest messageRequest) {
       synchronized (clientOutputs) {
          // Send the new message to all connected clients
          for (PrintWriter clientOutput : clientOutputs) {
-            clientOutput.println(messageRequest.getUsername() + " : " + messageRequest.getMessage() + " Time: " + messageRequest.getTimestamp());
+            clientOutput.println(messageRequest.getUsername() + " : " + messageRequest.getMessage());
          }
       }
    }
