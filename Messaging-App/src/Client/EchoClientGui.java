@@ -147,9 +147,14 @@ public class EchoClientGui extends JFrame {
       sendButton.addActionListener(e -> sendMessage());
       messagePanel.add(sendButton, BorderLayout.SOUTH);
 
+      JButton backButton = new JButton("Back");
+      backButton.setPreferredSize(new Dimension(120, 30));  // Set preferred button size
+      backButton.addActionListener(e -> showMainPanel());
+      messagePanel.add(backButton);
+
       // Create message panel components
       echoArea = new JTextArea();
-      echoArea.setPreferredSize(new Dimension(340, 450));
+      echoArea.setPreferredSize(new Dimension(300, 300));
       echoArea.setEditable(false);
       JScrollPane scrollPane = new JScrollPane(echoArea);
       messagePanel.add(scrollPane, BorderLayout.CENTER);
@@ -270,6 +275,8 @@ public class EchoClientGui extends JFrame {
          System.out.println("Server Response: " + serverResponse);
 
          echoArea.append(serverResponse + "\n");
+
+         messageArea.setText("");
 
 
       } catch (IOException ex) {
