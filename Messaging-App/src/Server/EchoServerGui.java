@@ -169,6 +169,17 @@ public class EchoServerGui extends JFrame {
                   // Handle account creation
                   clientOutputs.remove(writer);
                   broatcastLogOnorLogOff(username, "LOGOUT");
+               } else if (userRequest.getAction().equals("DOWNLOADALL"))
+               {
+                  BufferedReader reader = new BufferedReader(new FileReader(userMessagesFilePath));
+                  {
+                     String line;
+                     while ((line = reader.readLine()) != null)
+                     {
+                        writer.println(line);
+                     }
+                     writer.flush();
+                  }
                }
 
             } else if (request instanceof MessageRequest) {
@@ -177,7 +188,7 @@ public class EchoServerGui extends JFrame {
                MessageRequest messageRequest = (MessageRequest) request;
 
                messageHistory.add(messageRequest);
-
+               MessageSerializer messageSerializer = new MessageSerializer(messageHistory, userMessagesFilePath);
                // Add the message to the message history
                logArea.append("Received message: " + messageRequest.getMessage() + "\n");
 

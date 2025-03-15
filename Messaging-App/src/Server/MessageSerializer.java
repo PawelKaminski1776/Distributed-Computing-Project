@@ -1,61 +1,132 @@
 package Server;
 
-import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 import Messages.MessageRequest;
 
-public class MessageSerializer {
-    List<MessageRequest> messages = new ArrayList<>();
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
-    public MessageSerializer(List<MessageRequest> Messages, String filePath) {
-        // If file exists, deserialize messages and add them to the list
-        if (fileExists(filePath)) {
-            this.messages.addAll(deserializeMessages(filePath));
+public class MessageSerializer
+{
+    List<MessageRequest> Messages;
+
+    public MessageSerializer(List<MessageRequest> messages, String filePath)
+    {
+        if(fileExists(filePath))
+        {
+            this.Messages = deserializeFromJsonFile(filePath);
+            this.Messages.addAll(messages);
+        }
+        else
+        {
+            this.Messages = messages;
         }
 
-        // Add new messages to the list
-        this.messages.addAll(Messages);
-
-        // Serialize the updated list of messages
-        serializeMessages(messages, filePath);
-    }
-
-    public List<MessageRequest> getMessages() {
-        return messages;
+        serializeToJsonFile(this.Messages, filePath);
     }
 
     private static boolean fileExists(String filePath) {
-        return new File(filePath).exists();
-    }
-
-    // Serialize the list of messages to a file
-    public static void serializeMessages(List<MessageRequest> messages, String filePath) {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
-            oos.writeObject(messages);
-            System.out.println("Messages serialized successfully.");
-        } catch (IOException e) {
-            System.out.println("Error serializing messages: " + e.getMessage());
-        }
-    }
-
-    // Deserialize a list of MessageRequest objects from a file
-    @SuppressWarnings("unchecked")
-    public static List<MessageRequest> deserializeMessages(String filePath) {
-        List<MessageRequest> messages = new ArrayList<>();
         File file = new File(filePath);
+        return file.exists();
+    }
 
-        if (!file.exists()) {
-            System.out.println("No previous messages found.");
-            return messages;
+    private static void serializeToJsonFile(List<MessageRequest> messages, String fileName) {
+        StringBuilder jsonBuilder = new StringBuilder();
+        jsonBuilder.append("[");
+
+        for (int i = 0; i < messages.size(); i++) {
+            jsonBuilder.append(toJson(messages.get(i)));
+            if (i < messages.size() - 1) {
+                jsonBuilder.append(",");
+            }
+        }
+        jsonBuilder.append("]");
+
+        try (FileWriter file = new FileWriter(fileName)) {
+            file.write(jsonBuilder.toString());
+            System.out.println("JSON file created successfully!");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static List<MessageRequest> deserializeFromJsonFile(String fileName) {
+        List<MessageRequest> messages = new ArrayList<>();
+        StringBuilder jsonContent = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                jsonContent.append(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filePath))) {
-            messages = (List<MessageRequest>) ois.readObject();
-            System.out.println("Messages deserialized successfully.");
+        String json = jsonContent.toString().trim();
+        if (json.startsWith("[") && json.endsWith("]")) {
+            json = json.substring(1, json.length() - 1); // Remove [ and ]
+        }
+
+        String[] objectStrings = json.split("},\\{");
+        for (String obj : objectStrings) {
+            obj = obj.trim();
+            if (!obj.startsWith("{")) obj = "{" + obj;
+            if (!obj.endsWith("}")) obj = obj + "}";
+            messages.add(fromJson(obj));
+        }
+
+        return messages;
+    }
+
+    private static void serializeToObjectFile(List<MessageRequest> messages, String fileName) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName))) {
+            out.writeObject(messages);
+            System.out.println("Serialized to object file successfully!");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static List<MessageRequest> deserializeFromObjectFile(String fileName) {
+        List<MessageRequest> messages = new ArrayList<>();
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName))) {
+            messages = (List<MessageRequest>) in.readObject();
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Error deserializing messages: " + e.getMessage());
+            e.printStackTrace();
         }
         return messages;
+    }
+
+    private static String toJson(MessageRequest message) {
+        return "{\"username\":\"" + message.getUsername() + "\", \"message\":\"" + message.getMessage() +
+                "\", \"timestamp\":\"" + message.getTimestamp().getTime() + "\"}";
+    }
+
+    private static MessageRequest fromJson(String json) {
+        json = json.trim().replace("{", "").replace("}", "");
+        String[] parts = json.split(",");
+        String username = "";
+        String message = "";
+        long timestamp = 0;
+
+        for (String part : parts) {
+            String[] keyValue = part.split(":");
+            String key = keyValue[0].trim().replace("\"", "");
+            String value = keyValue[1].trim().replace("\"", "");
+
+            if (key.equals("username")) {
+                username = value;
+            } else if (key.equals("message")) {
+                message = value;
+            } else if (key.equals("timestamp")) {
+                timestamp = Long.parseLong(value);
+            }
+        }
+
+        MessageRequest msgRequest = new MessageRequest(username, message);
+        msgRequest.setTimestamp(new Date(timestamp));
+        return msgRequest;
     }
 }

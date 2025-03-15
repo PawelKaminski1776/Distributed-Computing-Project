@@ -153,6 +153,11 @@ public class EchoClientGui extends JFrame {
       backButton.addActionListener(e -> showMainPanel());
       messagePanel.add(backButton);
 
+      JButton downloadAllMessagesButton = new JButton("Download All Messages");
+      downloadAllMessagesButton.setPreferredSize(new Dimension(120, 30));  // Set preferred button size
+      downloadAllMessagesButton.addActionListener(e -> DownloadAllMessages());
+      messagePanel.add(downloadAllMessagesButton);
+
       // Create message panel components
       echoArea = new JTextArea(message);
       echoArea.setPreferredSize(new Dimension(300, 300));
@@ -166,6 +171,46 @@ public class EchoClientGui extends JFrame {
       repaint();
 
       new Thread(this::ListenToServer).start();
+   }
+
+   private void DownloadAllMessages()
+   {
+         String host = "localhost";
+         int port = 7;
+
+         JFileChooser fileChooser = new JFileChooser();
+         fileChooser.setDialogTitle("Choose Save Location for JSON File");
+         fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+
+         fileChooser.setSelectedFile(new File("received_messages.json"));
+
+         int userSelection = fileChooser.showSaveDialog(null);
+
+         if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File saveFile = fileChooser.getSelectedFile();
+
+            try (Socket socket = new Socket(host, port);
+                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                 FileWriter fileWriter = new FileWriter(saveFile)) {
+
+               UserRequest loginRequest = new UserRequest(Username, "", "DOWNLOADALL");
+               out.writeObject(loginRequest);
+
+               String line;
+               while ((line = in.readLine()) != null) {
+                  fileWriter.write(line + "\n");
+                  System.out.println(line);
+               }
+
+               System.out.println("JSON file saved successfully at: " + saveFile.getAbsolutePath());
+
+            } catch (IOException e) {
+               e.printStackTrace();
+            }
+         } else {
+            System.out.println("File save operation cancelled.");
+         }
    }
 
    private void ListenToServer()
@@ -215,7 +260,6 @@ public class EchoClientGui extends JFrame {
 
    private void LogOut()
    {
-      this.Username = null;
       try(Socket clientSocket = new Socket("localhost", 7);
           ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
           BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
@@ -226,6 +270,7 @@ public class EchoClientGui extends JFrame {
       } catch (IOException ex) {
          echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
       }
+      this.Username = null;
    }
 
    // Clear current content of the frame
