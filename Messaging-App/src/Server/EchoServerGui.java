@@ -1,7 +1,10 @@
 package Server;
 
+import Messages.DownloadRequest;
 import Messages.UserRequest;
 import Messages.MessageRequest;
+import Serializers.DatabaseSerializer;
+import Serializers.MessageSerializer;
 
 import java.io.*;
 import java.net.*;
@@ -103,7 +106,7 @@ public class EchoServerGui extends JFrame {
          try {
             while (isServerRunning) {
                Socket clientSocket = serverSocket.accept();
-               logArea.append("Client connected: " + clientSocket.getInetAddress() + "\n");
+               logArea.append("Client Trying to Connect: " + clientSocket.getInetAddress() + "\n");
 
                // Handle the client's requests in a new thread
                new Thread(new ClientConnectionHandler(clientSocket)).start();
@@ -169,20 +172,10 @@ public class EchoServerGui extends JFrame {
                   // Handle account creation
                   clientOutputs.remove(writer);
                   broatcastLogOnorLogOff(username, "LOGOUT");
-               } else if (userRequest.getAction().equals("DOWNLOADALL"))
-               {
-                  BufferedReader reader = new BufferedReader(new FileReader(userMessagesFilePath));
-                  {
-                     String line;
-                     while ((line = reader.readLine()) != null)
-                     {
-                        writer.println(line);
-                     }
-                     writer.flush();
-                  }
                }
 
-            } else if (request instanceof MessageRequest) {
+            }
+            else if (request instanceof MessageRequest) {
 
                // Handle MessageRequest
                MessageRequest messageRequest = (MessageRequest) request;
@@ -195,6 +188,40 @@ public class EchoServerGui extends JFrame {
                // Broadcast the message to all clients
                broadcastMessage(messageRequest);
             }
+
+            else if (request instanceof DownloadRequest) {
+               DownloadRequest downloadRequest = (DownloadRequest) request;
+
+               if (downloadRequest.isOneMessage()) {
+                  MessageSerializer messageSerializer = new MessageSerializer(messageHistory, userMessagesFilePath);
+                  List<MessageRequest> messages = messageSerializer.getMessages();
+                  for(MessageRequest message : messages)
+                  {
+                     System.out.print(message);
+                  }
+                  try (ObjectOutputStream objectOutputStream = new ObjectOutputStream(clientSocket.getOutputStream())) {
+                     // Send the list as a serialized object
+                     objectOutputStream.writeObject(messages);
+                     objectOutputStream.flush();
+                  } catch (IOException e) {
+                     System.err.println("Error sending messages: " + e.getMessage());
+                  }
+
+               }
+
+               else {
+                  try (BufferedReader reader = new BufferedReader(new FileReader(userMessagesFilePath))) {
+                     String line;
+                     while ((line = reader.readLine()) != null) {
+                        writer.println(line);
+                     }
+                     writer.flush();
+                  } catch (IOException e) {
+                     logArea.append("Error sending all messages: " + e.getMessage() + "\n");
+                  }
+               }
+            }
+
 
          } catch (IOException | ClassNotFoundException ex) {
             logArea.append("Error handling client: " + ex.getMessage() + "\n");

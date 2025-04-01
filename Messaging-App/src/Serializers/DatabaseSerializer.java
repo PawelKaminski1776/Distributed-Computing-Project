@@ -1,4 +1,4 @@
-package Server;
+package Serializers;
 
 import java.util.Map;
 import java.io.*;

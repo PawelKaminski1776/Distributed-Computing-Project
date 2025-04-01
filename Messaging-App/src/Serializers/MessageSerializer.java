@@ -1,4 +1,4 @@
-package Server;
+package Serializers;
 
 import Messages.MessageRequest;
 
@@ -10,6 +10,10 @@ import java.util.List;
 public class MessageSerializer
 {
     List<MessageRequest> Messages;
+
+    public List<MessageRequest> getMessages() {
+        return Messages;
+    }
 
     public MessageSerializer(List<MessageRequest> messages, String filePath)
     {
@@ -80,24 +84,6 @@ public class MessageSerializer
         return messages;
     }
 
-    private static void serializeToObjectFile(List<MessageRequest> messages, String fileName) {
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName))) {
-            out.writeObject(messages);
-            System.out.println("Serialized to object file successfully!");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static List<MessageRequest> deserializeFromObjectFile(String fileName) {
-        List<MessageRequest> messages = new ArrayList<>();
-        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName))) {
-            messages = (List<MessageRequest>) in.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return messages;
-    }
 
     private static String toJson(MessageRequest message) {
         return "{\"username\":\"" + message.getUsername() + "\", \"message\":\"" + message.getMessage() +

@@ -1,13 +1,17 @@
 package Client;
 
+import Messages.DownloadRequest;
 import Messages.MessageRequest;
 import Messages.UserRequest;
 
 import java.io.*;
 import java.net.*;
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class EchoClientGui extends JFrame {
    private JTextField usernameField;
@@ -22,11 +26,15 @@ public class EchoClientGui extends JFrame {
    private PrintWriter writer;
    private BufferedReader reader;
 
+
+   private String host = "localhost";
+   private int port = 7;
    // Panels for each screen
    private JPanel mainPanel;
    private JPanel loginPanel;
    private JPanel createAccountPanel;
    private JPanel messagePanel;
+   private JPanel DownloadOneMessagePanel;
 
 
    public EchoClientGui() {
@@ -40,6 +48,7 @@ public class EchoClientGui extends JFrame {
       loginPanel = new JPanel();
       createAccountPanel = new JPanel();
       messagePanel = new JPanel();
+      DownloadOneMessagePanel = new JPanel();
 
       // Initialize components for the main panel (initial screen with buttons)
       JButton loginButton = new JButton("Login");
@@ -158,6 +167,12 @@ public class EchoClientGui extends JFrame {
       downloadAllMessagesButton.addActionListener(e -> DownloadAllMessages());
       messagePanel.add(downloadAllMessagesButton);
 
+      JButton downloadOneMessageButton = new JButton("Download Specific");
+      downloadOneMessageButton.setPreferredSize(new Dimension(120, 30));  // Set preferred button size
+      downloadOneMessageButton.addActionListener(e -> DownloadOneMessage());
+      messagePanel.add(downloadOneMessageButton);
+
+
       // Create message panel components
       echoArea = new JTextArea(message);
       echoArea.setPreferredSize(new Dimension(300, 300));
@@ -173,11 +188,116 @@ public class EchoClientGui extends JFrame {
       new Thread(this::ListenToServer).start();
    }
 
+   public void showDownloadOneMessagePanel(List<MessageRequest> messageData) {
+      clearFrame();
+      clearPanel(DownloadOneMessagePanel);
+      DownloadOneMessagePanel.setLayout(new BorderLayout());
+
+      // Column Names
+      String[] columnNames = {"Username", "Message", "Timestamp"};
+
+      // Convert List<MessageRequest> to String[][] for JTable
+      String[][] data = new String[messageData.size()][3];
+      for (int i = 0; i < messageData.size(); i++) {
+         data[i][0] = messageData.get(i).getUsername();
+         data[i][1] = messageData.get(i).getMessage();
+         data[i][2] = String.valueOf(messageData.get(i).getTimestamp());
+      }
+
+      // Create Table Model
+      DefaultTableModel model = new DefaultTableModel(data, columnNames);
+      JTable messageTable = new JTable(model);
+      messageTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+      // Add MouseListener to detect row clicks
+      messageTable.addMouseListener(new MouseAdapter() {
+         public void mouseClicked(MouseEvent e) {
+            int row = messageTable.getSelectedRow();
+            if (row != -1) {
+               String messageId = messageTable.getValueAt(row, 0).toString();
+               String messageContent = messageTable.getValueAt(row, 1).toString();
+
+               JOptionPane.showMessageDialog(null, "Downloading Message ID: " + messageId + "\nContent: " + messageContent);
+
+               // Call your download function (replace with actual implementation)
+               //DownloadSpecificMessage(messageId);
+            }
+         }
+      });
+
+      // Add table to JScrollPane
+      JScrollPane tableScrollPane = new JScrollPane(messageTable);
+      DownloadOneMessagePanel.add(tableScrollPane, BorderLayout.CENTER);
+
+      // Back Button
+      JButton backButton = new JButton("Back");
+      backButton.addActionListener(e -> showMessagePanel("Returning to messages..."));
+
+      JPanel buttonPanel = new JPanel();
+      buttonPanel.add(backButton);
+
+      DownloadOneMessagePanel.add(buttonPanel, BorderLayout.SOUTH);
+
+      // Add panel to the frame
+      add(DownloadOneMessagePanel, BorderLayout.CENTER);
+      revalidate();
+      repaint();
+   }
+
+   // Send message to server
+   private void sendMessage() {
+      String message = messageArea.getText().trim();
+      if (message.isEmpty()) {
+         echoArea.append("\nPlease enter a message.");
+         return;
+      }
+
+      try(Socket clientSocket = new Socket(host, port);
+          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+
+         MessageRequest messageRequest = new MessageRequest(this.Username, message);
+
+         out.writeObject(messageRequest);
+
+         messageArea.setText("");
+
+
+      } catch (IOException ex) {
+         echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
+      }
+   }
+
+   private void DownloadOneMessage() {
+      try (Socket socket = new Socket(host, port)) {
+         // Debug: Notify when connection is established
+         System.out.println("Connected to server at " + host + ":" + port);
+
+         // Create ObjectOutputStream first and flush it
+         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+         DownloadRequest request = new DownloadRequest(true);
+         out.writeObject(request);
+
+         // Now, create ObjectInputStream to read response
+         ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+         System.out.println("ObjectInputStream created.");
+
+         // Read the response (list of messages)
+         List<MessageRequest> messages = (List<MessageRequest>) in.readObject();
+         System.out.println("Messages received: " + messages);
+
+         // Show the downloaded messages
+         showDownloadOneMessagePanel(messages);
+         System.out.println("Messages displayed in the panel.");
+
+      } catch (IOException | ClassNotFoundException e) {
+         System.err.println("Error during message download: " + e.getMessage());
+         e.printStackTrace();
+      }
+   }
+
    private void DownloadAllMessages()
    {
-         String host = "localhost";
-         int port = 7;
-
          JFileChooser fileChooser = new JFileChooser();
          fileChooser.setDialogTitle("Choose Save Location for JSON File");
          fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -194,8 +314,8 @@ public class EchoClientGui extends JFrame {
                  BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                  FileWriter fileWriter = new FileWriter(saveFile)) {
 
-               UserRequest loginRequest = new UserRequest(Username, "", "DOWNLOADALL");
-               out.writeObject(loginRequest);
+               DownloadRequest request = new DownloadRequest(false);
+               out.writeObject(request);
 
                String line;
                while ((line = in.readLine()) != null) {
@@ -217,7 +337,7 @@ public class EchoClientGui extends JFrame {
    {
       while(this.Username != null)
       {
-         try(Socket clientSocket = new Socket("localhost", 7);
+         try(Socket clientSocket = new Socket(host,port);
              ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
              BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
             // Read the server's response
@@ -233,34 +353,11 @@ public class EchoClientGui extends JFrame {
       }
    }
 
-   // Send message to server
-   private void sendMessage() {
-      String message = messageArea.getText().trim();
-      if (message.isEmpty()) {
-         echoArea.append("\nPlease enter a message.");
-         return;
-      }
-
-      try(Socket clientSocket = new Socket("localhost", 7);
-          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-
-         MessageRequest messageRequest = new MessageRequest(this.Username, message);
-
-         out.writeObject(messageRequest);
-
-         messageArea.setText("");
-
-
-      } catch (IOException ex) {
-         echoArea.append("Error connecting to server: " + ex.getMessage() + "\n");
-      }
-   }
 
 
    private void LogOut()
    {
-      try(Socket clientSocket = new Socket("localhost", 7);
+      try(Socket clientSocket = new Socket(host, port);
           ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
           BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
          UserRequest loginRequest = new UserRequest(Username, "", "LOGOUT");
@@ -304,7 +401,7 @@ public class EchoClientGui extends JFrame {
          return;
       }
 
-      try(Socket clientSocket = new Socket("localhost", 7);
+      try(Socket clientSocket = new Socket(host, port);
          ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
          BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
@@ -341,7 +438,7 @@ public class EchoClientGui extends JFrame {
          return;
       }
 
-      try(Socket clientSocket = new Socket("localhost", 7);
+      try(Socket clientSocket = new Socket(host, port);
           ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
           BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
