@@ -214,13 +214,13 @@ public class EchoClientGui extends JFrame {
          public void mouseClicked(MouseEvent e) {
             int row = messageTable.getSelectedRow();
             if (row != -1) {
-               String messageId = messageTable.getValueAt(row, 0).toString();
+               String messageUsername = messageTable.getValueAt(row, 0).toString();
                String messageContent = messageTable.getValueAt(row, 1).toString();
-
-               JOptionPane.showMessageDialog(null, "Downloading Message ID: " + messageId + "\nContent: " + messageContent);
+               String messageTimestamp = messageTable.getValueAt(row, 2).toString();
+               JOptionPane.showMessageDialog(null, "Downloading Message Username: " + messageUsername + "\nContent: " + messageContent);
 
                // Call your download function (replace with actual implementation)
-               //DownloadSpecificMessage(messageId);
+               DownloadSpecificMessage(messageUsername, messageContent, messageTimestamp);
             }
          }
       });
@@ -242,6 +242,28 @@ public class EchoClientGui extends JFrame {
       add(DownloadOneMessagePanel, BorderLayout.CENTER);
       revalidate();
       repaint();
+   }
+
+   public void DownloadSpecificMessage(String username, String message, String timestamp) {
+      JFileChooser fileChooser = new JFileChooser();
+      fileChooser.setDialogTitle("Choose Save Location for JSON File");
+      fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+      fileChooser.setSelectedFile(new File("received_messages.json"));
+
+      int userSelection = fileChooser.showSaveDialog(null);
+      if (userSelection == JFileChooser.APPROVE_OPTION) {
+         File saveFile = fileChooser.getSelectedFile();
+         try (BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile))) {
+            writer.write("{" +
+                    "\"username\": \"" + username + "\"," +
+                    "\"timestamp\": \"" + timestamp + "\"," +
+                    "\"message\": \"" + message + "\"}" );
+            JOptionPane.showMessageDialog(null, "Message saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+         } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Error saving message: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+         }
+      }
    }
 
    // Send message to server

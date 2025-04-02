@@ -169,7 +169,7 @@ public class EchoServerGui extends JFrame {
                   }
                }
                else if (userRequest.getAction().equals("LOGOUT")) {
-                  // Handle account creation
+                  // Handle account logout
                   clientOutputs.remove(writer);
                   broatcastLogOnorLogOff(username, "LOGOUT");
                }
